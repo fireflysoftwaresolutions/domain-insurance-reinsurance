@@ -33,7 +33,7 @@ import org.springframework.context.annotation.ComponentScan;
 info = @Info(
         title = "Domain Insurance Reinsurance API",
         version = "1.0.0",
-        description = "Orchestrates reinsurance treaties through core-insurance-reinsurance. It records treaty status through the reinsurance core. It does not post a reinsurance recovery, does not move money, and does not certify IFRS 17 or Solvency II.",
+        description = "Orchestrates reinsurance treaties through core-insurance-reinsurance. It creates, updates, changes status, and closes treaties through the reinsurance core. It does not post a reinsurance recovery, does not move money, and does not certify IFRS 17 or Solvency II.",
         contact = @Contact(
                 name = "Firefly Software Foundation",
                 email = "dev@fireflysoftware.io"

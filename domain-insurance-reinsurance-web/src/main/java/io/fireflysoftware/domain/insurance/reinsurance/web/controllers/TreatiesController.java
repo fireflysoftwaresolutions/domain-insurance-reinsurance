@@ -18,8 +18,10 @@ package io.fireflysoftware.domain.insurance.reinsurance.web.controllers;
 
 import io.fireflysoftware.core.insurance.reinsurance.sdk.model.TreatyDTO;
 import io.fireflysoftware.domain.insurance.reinsurance.core.commands.CreateTreatyCommand;
+import io.fireflysoftware.domain.insurance.reinsurance.core.commands.UpdateTreatyCommand;
 import io.fireflysoftware.domain.insurance.reinsurance.core.commands.UpdateTreatyStatusCommand;
 import io.fireflysoftware.domain.insurance.reinsurance.core.services.ReinsuranceService;
+import io.fireflysoftware.domain.insurance.reinsurance.interfaces.dtos.ReasonRequest;
 import io.fireflysoftware.domain.insurance.reinsurance.interfaces.dtos.StatusChangeRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -31,6 +33,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -98,5 +101,49 @@ public class TreatiesController {
         return service.updateStatus(new UpdateTreatyStatusCommand(treatyId, request.getStatus(), request.getStatusReason()))
                 .map(ResponseEntity::ok)
                 .switchIfEmpty(Mono.just(ResponseEntity.notFound().build()));
+    }
+
+    @Operation(summary = "Update treaty", description = "Runs the update saga against core-insurance-reinsurance. Status is left unchanged.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Updated",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = TreatyDTO.class))),
+            @ApiResponse(responseCode = "404", description = "Not found", content = @Content)
+    })
+    @PutMapping(value = "/{treatyId}", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public Mono<ResponseEntity<TreatyDTO>> update(
+            @Parameter(description = "Core identifier", required = true) @PathVariable UUID treatyId,
+            @RequestBody TreatyDTO body) {
+        return service.update(new UpdateTreatyCommand(treatyId, body))
+                .map(ResponseEntity::ok)
+                .switchIfEmpty(Mono.just(ResponseEntity.notFound().build()));
+    }
+
+    @Operation(summary = "Expire treaty", description = "Expires a treaty when the reinsurance core allows EXPIRED.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Updated",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = TreatyDTO.class))),
+            @ApiResponse(responseCode = "404", description = "Not found", content = @Content)
+    })
+    @PostMapping(value = "/{treatyId}/expire", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public Mono<ResponseEntity<TreatyDTO>> expire(
+            @Parameter(description = "Core identifier", required = true) @PathVariable UUID treatyId,
+            @RequestBody ReasonRequest request) {
+        return service.expire(treatyId, request.getStatusReason())
+                .map(ResponseEntity::ok)
+                .switchIfEmpty(Mono.just(ResponseEntity.notFound().build()));
+    }
+
+    @Operation(summary = "Remove treaty", description = "Deletes the record through core-insurance-reinsurance when that core allows removal.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Removed"),
+            @ApiResponse(responseCode = "404", description = "Not found", content = @Content)
+    })
+    @DeleteMapping("/{treatyId}")
+    public Mono<ResponseEntity<Void>> remove(
+            @Parameter(description = "Core identifier", required = true) @PathVariable UUID treatyId) {
+        return service.remove(treatyId)
+                .thenReturn(ResponseEntity.noContent().build());
     }
 }

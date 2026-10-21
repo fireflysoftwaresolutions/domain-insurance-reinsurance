@@ -44,6 +44,14 @@ public final class TreatySagaConstants {
     public static final String CTX_RECORD = "treatyIdRecord";
     public static final String CTX_PREVIOUS_STATUS = "previousTreatyStatus";
 
+
+    public static final String SAGA_UPDATE_RECORD = "UpdateTreatySaga";
+    public static final String STEP_RETRIEVE_FOR_UPDATE = "retrieveTreatyForUpdate";
+    public static final String STEP_UPDATE_RECORD = "updateTreaty";
+    public static final String COMPENSATE_RESTORE_RECORD = "restoreTreaty";
+    public static final String EVENT_RECORD_UPDATED = "treaties.updated";
+    public static final String CTX_PREVIOUS_RECORD = "previousTreatyRecord";
+
     private TreatySagaConstants() {
     }
 }

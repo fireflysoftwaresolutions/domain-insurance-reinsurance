@@ -18,6 +18,7 @@ package io.fireflysoftware.domain.insurance.reinsurance.web.controllers;
 
 import io.fireflysoftware.core.insurance.reinsurance.sdk.model.TreatyDTO;
 import io.fireflysoftware.domain.insurance.reinsurance.core.services.ReinsuranceService;
+import io.fireflysoftware.domain.insurance.reinsurance.interfaces.dtos.ReasonRequest;
 import io.fireflysoftware.domain.insurance.reinsurance.interfaces.dtos.StatusChangeRequest;
 import org.fireflyframework.web.error.config.ErrorHandlingProperties;
 import org.fireflyframework.web.error.converter.ExceptionConverterService;
@@ -107,5 +108,46 @@ class TreatiesControllerTest {
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody(TreatyDTO.class);
+    }
+
+    @Test
+    void update_returns200() {
+        UUID id = UUID.randomUUID();
+        when(service.update(any())).thenReturn(Mono.just(new TreatyDTO(id)));
+
+        webTestClient.put()
+                .uri("/api/v1/treaties/{id}", id)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(new TreatyDTO())
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody(TreatyDTO.class);
+    }
+
+    @Test
+    void expire_returns200() {
+        UUID id = UUID.randomUUID();
+        when(service.expire(any(), any())).thenReturn(Mono.just(new TreatyDTO(id)));
+        ReasonRequest request = new ReasonRequest();
+        request.setStatusReason("Caller request");
+
+        webTestClient.post()
+                .uri("/api/v1/treaties/{id}/expire", id)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody(TreatyDTO.class);
+    }
+
+    @Test
+    void remove_returns204() {
+        UUID id = UUID.randomUUID();
+        when(service.remove(id)).thenReturn(Mono.empty());
+
+        webTestClient.delete()
+                .uri("/api/v1/treaties/{id}", id)
+                .exchange()
+                .expectStatus().isNoContent();
     }
 }

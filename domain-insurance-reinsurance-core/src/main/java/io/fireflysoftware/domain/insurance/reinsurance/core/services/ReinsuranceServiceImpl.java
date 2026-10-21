@@ -20,7 +20,11 @@ import io.fireflysoftware.core.insurance.reinsurance.sdk.model.TreatyDTO;
 import io.fireflysoftware.domain.insurance.reinsurance.core.commands.CreateTreatyCommand;
 import io.fireflysoftware.domain.insurance.reinsurance.core.commands.GetTreatyQuery;
 import io.fireflysoftware.domain.insurance.reinsurance.core.commands.UpdateTreatyStatusCommand;
+import io.fireflysoftware.domain.insurance.reinsurance.core.commands.UpdateTreatyCommand;
+import io.fireflysoftware.domain.insurance.reinsurance.core.commands.RemoveTreatyCommand;
+import io.fireflysoftware.domain.insurance.reinsurance.core.lifecycle.TreatyRecordLifecycle;
 import io.fireflysoftware.domain.insurance.reinsurance.core.constants.TreatySagaConstants;
+import org.fireflyframework.cqrs.command.CommandBus;
 import org.fireflyframework.cqrs.query.QueryBus;
 import org.fireflyframework.orchestration.saga.engine.SagaEngine;
 import org.fireflyframework.orchestration.saga.engine.SagaResult;
@@ -38,10 +42,12 @@ public class ReinsuranceServiceImpl implements ReinsuranceService {
 
     private final SagaEngine sagaEngine;
     private final QueryBus queryBus;
+    private final CommandBus commandBus;
 
-    public ReinsuranceServiceImpl(SagaEngine sagaEngine, QueryBus queryBus) {
+    public ReinsuranceServiceImpl(SagaEngine sagaEngine, QueryBus queryBus, CommandBus commandBus) {
         this.sagaEngine = sagaEngine;
         this.queryBus = queryBus;
+        this.commandBus = commandBus;
     }
 
     @Override
@@ -66,6 +72,51 @@ public class ReinsuranceServiceImpl implements ReinsuranceService {
     @Override
     public Mono<TreatyDTO> get(UUID treatyId) {
         return queryBus.query(new GetTreatyQuery(treatyId));
+    }
+
+
+    @Override
+    public Mono<TreatyDTO> update(UpdateTreatyCommand command) {
+        StepInputs inputs = StepInputs.builder()
+                .forStepId(TreatySagaConstants.STEP_RETRIEVE_FOR_UPDATE, new GetTreatyQuery(command.treatyId()))
+                .forStepId(TreatySagaConstants.STEP_UPDATE_RECORD, command)
+                .build();
+        return sagaEngine.execute(TreatySagaConstants.SAGA_UPDATE_RECORD, inputs)
+                .flatMap(result -> outcome(result, TreatySagaConstants.STEP_UPDATE_RECORD, TreatyDTO.class));
+    }
+
+    @Override
+    public Mono<TreatyDTO> expire(UUID treatyId, String statusReason) {
+        return transition(treatyId, TreatyDTO.TreatyStatusEnum.EXPIRED, statusReason);
+    }
+
+    private Mono<TreatyDTO> transition(UUID treatyId, TreatyDTO.TreatyStatusEnum target, String statusReason) {
+        return get(treatyId)
+                .switchIfEmpty(Mono.error(new IllegalStateException("Treaty was not found")))
+                .flatMap(current -> {
+                    if (!TreatyRecordLifecycle.canTransition(current.getTreatyStatus(), target)) {
+                        String from = current.getTreatyStatus() == null
+                                ? "unset"
+                                : current.getTreatyStatus().getValue();
+                        return Mono.<TreatyDTO>error(new IllegalStateException(
+                                "Treaty " + treatyId + " cannot move from " + from + " to " + target.getValue()));
+                    }
+                    return updateStatus(new UpdateTreatyStatusCommand(treatyId, target.getValue(), statusReason));
+                });
+    }
+
+    @Override
+    public Mono<Void> remove(UUID treatyId) {
+        return get(treatyId)
+                .switchIfEmpty(Mono.error(new IllegalStateException("Treaty was not found")))
+                .flatMap(current -> {
+                    if (!TreatyRecordLifecycle.canRemove(current.getTreatyStatus())) {
+                        return Mono.error(new IllegalStateException(
+                                "Treaty " + treatyId + " is " + current.getTreatyStatus().getValue()
+                                        + " and cannot be deleted; expire it so the treaty history is kept"));
+                    }
+                    return commandBus.send(new RemoveTreatyCommand(treatyId));
+                });
     }
 
     private static <T> Mono<T> outcome(SagaResult result, String stepId, Class<T> type) {

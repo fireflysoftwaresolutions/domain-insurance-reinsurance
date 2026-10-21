@@ -19,6 +19,7 @@ package io.fireflysoftware.domain.insurance.reinsurance.core.services;
 import io.fireflysoftware.core.insurance.reinsurance.sdk.model.TreatyDTO;
 import io.fireflysoftware.domain.insurance.reinsurance.core.commands.CreateTreatyCommand;
 import io.fireflysoftware.domain.insurance.reinsurance.core.commands.UpdateTreatyStatusCommand;
+import io.fireflysoftware.domain.insurance.reinsurance.core.commands.UpdateTreatyCommand;
 import reactor.core.publisher.Mono;
 
 import java.util.UUID;
@@ -51,4 +52,29 @@ public interface ReinsuranceService {
      * @return the record, or empty when the core has none
      */
     Mono<TreatyDTO> get(UUID treatyId);
+
+    /**
+     * Updates fields on a treaty and leaves its status unchanged.
+     *
+     * @param command the update
+     * @return the record returned by the core
+     */
+    Mono<TreatyDTO> update(UpdateTreatyCommand command);
+
+    /**
+     * Expires a treaty when the reinsurance core allows EXPIRED.
+     *
+     * @param treatyId the core identifier
+     * @param statusReason optional reason stored by the status saga when the core keeps one
+     * @return the updated record
+     */
+    Mono<TreatyDTO> expire(UUID treatyId, String statusReason);
+
+    /**
+     * Deletes a treaty when the core lifecycle allows removal.
+     *
+     * @param treatyId the core identifier
+     * @return completion when the core has deleted the record
+     */
+    Mono<Void> remove(UUID treatyId);
 }
