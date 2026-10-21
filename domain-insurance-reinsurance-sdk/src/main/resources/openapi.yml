@@ -1,0 +1,200 @@
+openapi: 3.0.1
+info:
+  title: Domain Insurance Reinsurance API
+  description: "Orchestrates reinsurance treaties through core-insurance-reinsurance.\
+    \ It records treaty status through the reinsurance core. It does not post a reinsurance\
+    \ recovery, does not move money, and does not certify IFRS 17 or Solvency II."
+  contact:
+    name: Firefly Software Foundation
+    email: dev@fireflysoftware.io
+  version: 1.0.0
+servers:
+- url: https://openplatform.fireflysoftware.io/domain-insurance-reinsurance
+  description: Development Environment
+- url: /
+  description: Local Development Environment
+tags:
+- name: Reinsurance
+  description: Domain orchestration for reinsurance treaties
+paths:
+  /api/v1/treaties/{treatyId}/status:
+    put:
+      tags:
+      - Reinsurance
+      summary: Update status
+      description: Runs the status saga against core-insurance-reinsurance.
+      operationId: updateStatus
+      parameters:
+      - name: treatyId
+        in: path
+        description: Core identifier
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: X-Idempotency-Key
+        in: header
+        description: "Unique key for idempotent requests. If provided, ensures that\
+          \ identical requests with the same key will only be processed once."
+        required: false
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StatusChangeRequest"
+        required: true
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TreatyDTO"
+        "404":
+          description: Not found
+  /api/v1/treaties:
+    post:
+      tags:
+      - Reinsurance
+      summary: Create treaty
+      description: Runs the register saga against core-insurance-reinsurance.
+      operationId: create
+      parameters:
+      - name: X-Idempotency-Key
+        in: header
+        description: "Unique key for idempotent requests. If provided, ensures that\
+          \ identical requests with the same key will only be processed once."
+        required: false
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TreatyDTO"
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TreatyDTO"
+        "400":
+          description: Invalid request
+  /api/v1/treaties/{treatyId}:
+    get:
+      tags:
+      - Reinsurance
+      summary: Get treaty
+      description: Reads one record from core-insurance-reinsurance.
+      operationId: get
+      parameters:
+      - name: treatyId
+        in: path
+        description: Core identifier
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: X-Idempotency-Key
+        in: header
+        description: "Unique key for idempotent requests. If provided, ensures that\
+          \ identical requests with the same key will only be processed once."
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TreatyDTO"
+        "404":
+          description: Not found
+components:
+  schemas:
+    StatusChangeRequest:
+      type: object
+      properties:
+        status:
+          type: string
+        statusReason:
+          type: string
+    TreatyDTO:
+      required:
+      - effectiveFrom
+      - lineOfBusiness
+      - reinsurerPartyId
+      - tenantId
+      - treatyNumber
+      - treatyStatus
+      - treatyType
+      type: object
+      properties:
+        treatyId:
+          type: string
+          format: uuid
+          nullable: true
+        tenantId:
+          type: string
+          format: uuid
+        treatyNumber:
+          type: string
+        contractId:
+          type: string
+          format: uuid
+          nullable: true
+        reinsurerPartyId:
+          type: string
+          format: uuid
+        treatyType:
+          type: string
+          enum:
+          - QUOTA_SHARE
+          - SURPLUS
+          - EXCESS_OF_LOSS
+          - FACULTATIVE
+        lineOfBusiness:
+          type: string
+          enum:
+          - MOTOR
+          - PROPERTY
+          - LIABILITY
+          - LIFE
+          - HEALTH
+          - MARINE
+          - AVIATION
+          - ACCIDENT
+          - OTHER
+        effectiveFrom:
+          type: string
+          format: date
+        effectiveTo:
+          type: string
+          format: date
+          nullable: true
+        treatyStatus:
+          type: string
+          enum:
+          - DRAFT
+          - ACTIVE
+          - RUN_OFF
+          - EXPIRED
+        cessionRate:
+          type: number
+          nullable: true
+        currency:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+          nullable: true
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
